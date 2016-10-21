@@ -20,7 +20,7 @@ CREATE VIEW standings as
 	(select p.player_id, 
 		p.player_name, 
 		count(case when m.outcome = 'win' then 1 else null end) as wins,
-		count(case when m.player_id not null then 1 else null end) as matches
+		count(case when m.player_id notnull then 1 else null end) as matches
 		from 
 			players p
 			left outer join matches m 
