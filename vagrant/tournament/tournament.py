@@ -11,16 +11,41 @@ def connect():
     return psycopg2.connect("dbname=tournament")
 
 
+def execute_query(sql_statement, values=None):
+    """Execute a sql statement and return the query result."""
+    db = connect()
+    cursor = db.cursor()
+    if values:
+        cursor.execute(sql_statement, values)
+    else:
+        cursor.execute(sql_statement)
+    try:
+        result = cursor.fetchall()
+    except psycopg2.ProgrammingError:
+        result = None
+    db.commit()
+    db.close()
+    return result
+
+
 def deleteMatches():
     """Remove all the match records from the database."""
+    delete_matches_statement = 'delete from matches'
+    execute_query(delete_matches_statement)
 
 
 def deletePlayers():
     """Remove all the player records from the database."""
+    delete_players_statement = "delete from players"
+    execute_query(delete_players_statement)
 
 
 def countPlayers():
     """Returns the number of players currently registered."""
+    count_players_statement = "select count(*) from players"
+    player_count_result = execute_query(count_players_statement)
+    player_count = player_count_result[0][0]
+    return player_count
 
 
 def registerPlayer(name):
@@ -32,6 +57,9 @@ def registerPlayer(name):
     Args:
       name: the player's full name (need not be unique).
     """
+    register_player_statement = "insert into players (player_name) values (%s)"
+    register_player_values = (name,)
+    execute_query(register_player_statement, register_player_values)
 
 
 def playerStandings():
@@ -47,6 +75,9 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
+    standings_statement = "select * from standings order by wins desc;"
+    standings_result = execute_query(standings_statement)
+    return standings_result
 
 
 def reportMatch(winner, loser):
@@ -56,6 +87,14 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
+    winner_match_statement = """insert into matches (player_id, outcome)
+        values (%s, 'win')"""
+    winner_values = (winner,)
+    loser_match_statement = """insert into matches (player_id, outcome)
+        values (%s, 'loss')"""
+    loser_values = (loser,)
+    execute_query(winner_match_statement, winner_values)
+    execute_query(loser_match_statement, loser_values)
  
  
 def swissPairings():
@@ -73,5 +112,19 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
+    current_standings = playerStandings()
+    next_round = []
+    match_count = 0
+    for player_row in current_standings:
+        player_id = player_row[0]
+        name = player_row[1]
+        if match_count == 0:
+            match_list = [player_id, name]
+            match_count += 1
+        elif match_count == 1:
+            match_list += [player_id, name]
+            next_round.append(tuple(match_list))
+            match_count = 0
+    return next_round
 
 
