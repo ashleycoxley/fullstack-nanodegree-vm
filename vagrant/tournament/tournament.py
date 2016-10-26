@@ -5,16 +5,23 @@
 
 import psycopg2
 
+DB_NAME = 'tournament'
 
-def connect():
+def connect(DB_NAME):
     """Connect to the PostgreSQL database.  Returns a database connection."""
-    return psycopg2.connect("dbname=tournament")
+    try:
+        db = psycopg2.connect("dbname={}".format(DB_NAME))
+        cursor = db.cursor()
+        return db, cursor
+    except:
+        print("Could not connect to the database.")
+
+    return db, cursor
 
 
 def execute_query(sql_statement, values=None):
     """Execute a sql statement and return the query result."""
-    db = connect()
-    cursor = db.cursor()
+    db, cursor = connect(DB_NAME)
     if values:
         cursor.execute(sql_statement, values)
     else:
@@ -87,14 +94,9 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
-    winner_match_statement = """insert into matches (player_id, outcome)
-        values (%s, 'win')"""
-    winner_values = (winner,)
-    loser_match_statement = """insert into matches (player_id, outcome)
-        values (%s, 'loss')"""
-    loser_values = (loser,)
-    execute_query(winner_match_statement, winner_values)
-    execute_query(loser_match_statement, loser_values)
+    match_statement = """insert into matches (winner, loser)
+        values (%s, %s)"""
+    execute_query(match_statement, (winner, loser))
  
  
 def swissPairings():
@@ -118,13 +120,12 @@ def swissPairings():
     for player_row in current_standings:
         player_id = player_row[0]
         name = player_row[1]
-        if match_count == 0:
+        if match_count % 2 == 0:
             match_list = [player_id, name]
-            match_count += 1
-        elif match_count == 1:
+        else:
             match_list += [player_id, name]
             next_round.append(tuple(match_list))
-            match_count = 0
+        match_count += 1
     return next_round
 
 
